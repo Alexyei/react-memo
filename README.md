@@ -1,46 +1,44 @@
-# Getting Started with Create React App
+Когда изменяется состояние родителя (App), метод render вызывается у всех его детей, даже если состояние детей осталось неизменным (Clock и Swatch).
+Когда изменяется состояние ребёнка, метод render не вызывается у его родителя.
+Чтобы предотваратить ререндер детей, чьё состояние не изменилось можно воспользоваться мемоизацией.
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Сейчас при нажатии на кнопку перерисовывается Swatch, мемоизируем его, что это исправить.
 
-## Available Scripts
+В документации написанно: Этот метод существует только как оптимизация производительности . Не полагайтесь на него, чтобы «предотвратить» рендеринг, так как это может привести к ошибкам.
+Теперь покликав по кнопкам можно заметить резницу между Swatch и MemorizedSwatch
 
-In the project directory, you can run:
+Однако при re-render родителя заново создаются объекты( а следовательно и массивы, и callback), которые передаются в качестве props, и это "отменяет" мемоизацию.
+Чтобы исправить это нужно передать второй аргумент в мемо 
+Второй аргумент это колбек принимающий два аргумента предыдущие свойства и следующие, если колбек вернёт true ре-рендер не состоится, иначе рендер состоится.
+```typescript jsx
+    const memorizedComponent = memo(Component,(prevProps,nextProps)=>{
+        return prevProps.obj.color === nextProps.obj.color
+    })
+```
 
-### `npm start`
+Альтернативой является мемоизациия не объекта, а параметров с помощью хука useMemo.
+```typescript jsx
+const memorizedObj = useMemo(()=>{return {color}},[color])
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+Параметры нельзя мемоизировать с помощью memo, memo принимает своим аргументом только компонент.
+```typescript jsx
+//ERROR 
+//const m = memo(color)
+```
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+Компонент также можно мемоизировать с помощью useMemo, в этом случае его рендер сотсоится, но он вернёт уже закешированное значение, если свойства-зависимости useMemo не изменились.
+```typescript jsx
+export const SwatchWithObjUseMemo:FC<{color:CSSProperties["backgroundColor"], logText?: string, obj: {color:CSSProperties["backgroundColor"]}}> = ({color, logText='Swatch rendered '})=>{
+console.log(logText+color)
+return useMemo(()=>(<div style={{margin : 2, width: 75, height: 75, backgroundColor: color}}></div>),[color])
+}
+```
 
-### `npm test`
-
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
-
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+useCallback это сокращённая запись для useMemo когда нужнов вернуть фнукцию в качестве значения
+```typescript jsx
+useCallback(()=>color,[color]) '===' useMemo(()=>{return ()=>color},[color])
+```
+Когда использовать memo а когда useMemo?
+В случаях когда не удаётся написать функцию (из-за сложности или вариативности передаваемых параметров), для второго параметра memo, слудует использовать useMemo.
+memo в приоритете.
